@@ -82,16 +82,17 @@ def on_message(client, userdata, msg):
 # using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
-client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
+# client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
+client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="f16914d0673d48389d1506f00b9613af", userdata=None, protocol=paho.MQTTv5)
 client.on_connect = on_connect
 
 
 # enable TLS for secure connection
 client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 # set username and password
-client.username_pw_set("{YOUR USERNAME}", "{YOUR PASSWORD}")
+client.username_pw_set("sbulatao", "Meow1sqxst*")
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
-client.connect("{YOUR URL}", 8883)
+client.connect("f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud", 8883)
 
 
 # setting callbacks, use separate functions like above for better visibility
