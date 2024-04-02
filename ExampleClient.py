@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import random
+
 import time
 
 
 import paho.mqtt.client as paho
 from paho import mqtt
 
-
+import random
+import matplotlib.pyplot as plt # For graphing
 
 
 # setting callbacks for different events to see if it works, print the message etc.
@@ -40,7 +41,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 # with this callback you can see if your publish was successful
 def on_publish(client, userdata, mid, reasonCode, properties=None):
-    print("Published message with mid {}.".format(mid))
+    print("mid: {}".format(mid))
 # def on_publish(client, userdata, mid, properties=None):
 #     """
 #         Prints mid to stdout to reassure a successful publish ( used as callback for publish )
@@ -123,10 +124,21 @@ client.loop_start()
 otherClient.loop_start()
 
 
+# Holds values for graphClient and graphotherClient
+graphClient = []
+graphotherClient = []
+
+
+# Publishing and gathering datas for graphClient and graphotherClient
 for _ in range(5):
-    client.publish("encyclopedia/temperature", random.randint(1, 10), qos=1)
-    otherClient.publish("encyclopedia/light", random.randint(1, 10), qos=1)
-    time.sleep(1)
+    value1 = random.randint(1, 10)
+    value2 = random.randint(1, 10)
+    graphClient.append(value1)
+    graphotherClient.append(value2)
+    client.publish("encyclopedia/temperature", value1, qos=1)
+    otherClient.publish("encyclopedia/light", value2, qos=1)
+    time.sleep(3)
+
 
 client.loop_stop()
 otherClient.loop_stop() 
@@ -138,7 +150,8 @@ receivingClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSI
 receivingClient.on_connect = on_connect
 receivingClient.on_message = on_message
 
-receivingClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+# receivingClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS) # ???
+receivingClient.tls_set()
 
 receivingClient.username_pw_set("receive", "Received1!")
 
@@ -146,16 +159,32 @@ receivingClient.connect("afa1d2d417284e7cb702e7a83f757095.s1.eu.hivemq.cloud", 8
 
 receivingClient.on_subscribe = on_subscribe
 receivingClient.on_message = on_message
-receivingClient.on_publish = on_publish
+# receivingClient.on_publish = on_publish
 
 receivingClient.subscribe("encyclopedia/temperature", qos=1)
 receivingClient.subscribe("encyclopedia/light", qos=1)
 
+
 receivingClient.loop_start()
 
-time.sleep(5)
+# Create a new figure for the plot here
+plt.figure()
 
+# Plot the data for client
+plt.plot(range(len(graphClient)), graphClient, 'r-', label='client')
+
+# Plot the data for otherClient
+plt.plot(range(len(graphotherClient)), graphotherClient, 'b-', label='otherClient')
+
+# Add a legend to the plot
+plt.legend()
+
+# Display the plot hopefully
+plt.show()
+
+# Stop the loop for receivingClient
 receivingClient.loop_stop()
+
 
 
 # subscribe to all topics of encyclopedia by using the wildcard "#"
