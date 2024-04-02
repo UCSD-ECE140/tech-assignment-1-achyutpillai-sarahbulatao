@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 import time
-
+import random
 
 import paho.mqtt.client as paho
 from paho import mqtt
@@ -64,7 +64,7 @@ def on_subscribe(client, userdata, mid, granted_qos, properties=None):
     print("Subscribed: " + str(mid) + " " + str(granted_qos))
 
 
-
+tempData = []
 
 # print message, useful for checking if it was successful
 def on_message(client, userdata, msg):
@@ -75,39 +75,76 @@ def on_message(client, userdata, msg):
         :param msg: the message with topic and payload
     """
     print(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    tempData.append(msg.payload.decode('utf-8'))
 
 
 
+user = "apillai"
+pswrd = "apillai2024UCSD"
+url = "f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud"
+port = 8883
 
 # using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
-client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="", userdata=None, protocol=paho.MQTTv5)
-client.on_connect = on_connect
-
-
+pubClient1 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="publisher1", userdata=None, protocol=paho.MQTTv5)
+pubClient1.on_connect = on_connect
+pubClient1.on_publish = on_publish
 # enable TLS for secure connection
-client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+pubClient1.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 # set username and password
-client.username_pw_set("{YOUR USERNAME}", "{YOUR PASSWORD}")
+pubClient1.username_pw_set(user, pswrd)
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
-client.connect("{YOUR URL}", 8883)
+pubClient1.connect(url, port)
+
+pubClient2 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="publisher2", userdata=None, protocol=paho.MQTTv5)
+pubClient2.on_connect = on_connect
+pubClient2.on_publish = on_publish
+# enable TLS for secure connection
+pubClient2.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+# set username and password
+pubClient2.username_pw_set(user, pswrd)
+# connect to HiveMQ Cloud on port 8883 (default for MQTT)
+pubClient2.connect(url, port)
 
 
-# setting callbacks, use separate functions like above for better visibility
-client.on_subscribe = on_subscribe
-client.on_message = on_message
-client.on_publish = on_publish
+subClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="subscriber", userdata=None, protocol=paho.MQTTv5)
+subClient.on_connect = on_connect
+subClient.on_subscribe = on_subscribe
+subClient.on_message = on_message
+# enable TLS for secure connection
+subClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+# set username and password
+subClient.username_pw_set(user, pswrd)
+# connect to HiveMQ Cloud on port 8883 (default for MQTT)
+subClient.connect(url, port)
 
 
-# subscribe to all topics of encyclopedia by using the wildcard "#"
-client.subscribe("encyclopedia/#", qos=1)
+# subscribe to temperature topics of encyclopedia by using /temperature
+subClient.subscribe("encyclopedia/temperature", qos=1)
+time.sleep(1)
+subClient.loop_start()
 
+# loop for publishing data
+for i in range(10): 
+    randtemp1 = random.randint(1, 100) # random int between 1 and 100
+    randtemp2 = random.randint(1, 100) # random int between 1 and 100
+    pubClient1.publish("encyclopedia/temperature", payload=randtemp1, qos=1)
+    time.sleep(0.01) # delay so that first client can send without interference
+    pubClient2.publish("encyclopedia/temperature", payload=randtemp2, qos=1)
+    time.sleep(3) # publishes data once every 3 seconds
+    
 
-# a single publish, this can also be done in loops, etc.
-client.publish("encyclopedia/temperature", payload="hot", qos=1)
+# disconnects all clients and ends loop
+pubClient1.disconnect()
+pubClient2.disconnect()
+subClient.loop_stop()
+subClient.disconnect()
 
-
-# loop_forever for simplicity, here you need to stop the loop manually
-# you can also use loop_start and loop_stop
-client.loop_forever()
+#data from subscriber client
+tempData = [int(x) for x in tempData]
+client1Data = tempData[::2]
+client2Data = tempData[1::2]
+print("All subscribed data on encyclopedia/temperature: ", tempData) #all data subscribed from topic
+print("Data from Client 1: ", client1Data) # data published from client1
+print("Data from Client 2: ", client2Data) # data published from client2
