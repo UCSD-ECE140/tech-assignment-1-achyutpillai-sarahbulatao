@@ -18,6 +18,7 @@ import random
 
 import paho.mqtt.client as paho
 from paho import mqtt
+import matplotlib.pyplot as plt
 
 
 
@@ -148,3 +149,10 @@ client2Data = tempData[1::2]
 print("All subscribed data on encyclopedia/temperature: ", tempData) #all data subscribed from topic
 print("Data from Client 1: ", client1Data) # data published from client1
 print("Data from Client 2: ", client2Data) # data published from client2
+
+plt.figure(1)
+plt.plot(client1Data, label='Client 1 Data')
+plt.plot(client2Data, label='Client 2 Data')
+plt.legend()
+plt.title('Random numbers published to and subscribed from Broker')
+plt.show()
