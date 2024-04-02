@@ -25,15 +25,17 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 
 # with this callback you can see if your publish was successful
-def on_publish(client, userdata, mid, properties=None):
-    """
-        Prints mid to stdout to reassure a successful publish ( used as callback for publish )
-        :param client: the client itself
-        :param userdata: userdata is set when initiating the client, here it is userdata=None
-        :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
-        :param properties: can be used in MQTTv5, but is optional
-    """
-    print("mid: " + str(mid))
+def on_publish(client, userdata, mid, reasonCode, properties=None):
+    print("mid: {}".format(mid))
+# def on_publish(client, userdata, mid, properties=None):
+#     """
+#         Prints mid to stdout to reassure a successful publish ( used as callback for publish )
+#         :param client: the client itself
+#         :param userdata: userdata is set when initiating the client, here it is userdata=None
+#         :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
+#         :param properties: can be used in MQTTv5, but is optional
+#     """
+#     print("mid: " + str(mid))
 
 
 # print which topic was subscribed to
@@ -191,8 +193,10 @@ if __name__ == '__main__':
     username = os.environ.get('USER_NAME')
     password = os.environ.get('PASSWORD')
 
-    client = paho.Client(client_id="GameClient", userdata=None, protocol=paho.MQTTv5)
-    
+    # client = paho.Client(client_id="GameClient", userdata=None, protocol=paho.MQTTv5)
+    client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="GameClient", userdata=None, protocol=paho.MQTTv5)
+
+
     # enable TLS for secure connection
     client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
     # set username and password
@@ -210,8 +214,64 @@ if __name__ == '__main__':
     client.game_dict = {} # Keeps track of the games {{'lobby_name' : Game Object}
     client.move_dict = {} # Keeps track of the games {{'lobby_name' : Game Object}
 
-    client.subscribe("new_game")
-    client.subscribe('games/+/start')
-    client.subscribe('games/+/+/move')
+    # client.subscribe("new_game")
+    # client.subscribe('games/+/start')
+    # client.subscribe('games/+/+/move')
 
-    client.loop_forever()
+    # client.loop_forever()
+
+    ################################################### ??? CHALLENGE 2 HERE ??? #####################################################
+
+    # Create a new player
+    new_player = NewPlayer(lobby_name="Lobby1", team_name="Team1", player_name="Player1")
+
+
+    # Convert the new player to a JSON string
+    new_player_json = json.dumps(dict(new_player))
+
+
+    # Publish a new game
+    client.publish("new_game", new_player_json)
+
+
+    # Subscribe to the lobby: “games/{lobby_name}/lobby” Subscribe to it to see error messages from the game client and game output (game over, etc)
+    client.subscribe(f"games/{new_player.lobby_name}/lobby")
+
+
+    # Start the game: “games/{lobby_name}/start” - publish “START” when you want to start the game. 
+    # Publish “STOP” when you want to stop the game and clear the data (this will happen by default if all the objects are collected).
+    client.publish(f"games/{new_player.lobby_name}/start", "START")
+
+
+    # Subscribe to the game state: “games/{lobby_name}/{player_name}/game_state” - subscribe to it to see when the game has started and 
+    # receive the following data as json (all MQTT messages comes in as a byte array) that you can retrieve using json.loads(): 
+    # "teammateNames": ["Player2"],
+    #  "teammatePositions": [[8, 6]],
+    # "enemyPositions": [[6, 6]],
+    #  "currentPosition": [6, 4],
+    #  "coin1": [[4, 2]],
+    #  "coin2": [],
+    #  "coin3": [[4, 3]],
+    #  "walls": [[4, 4], [4, 5], [4, 6], [5, 4], [5, 5], [6, 3], [7, 2]]
+    # Most of these should be self-explanatory.
+    # The number after the coin specifies its value to the reward cost
+    client.subscribe(f"games/{new_player.lobby_name}/{new_player.player_name}/game_state")
+
+
+    # Publish scores: “games/{lobby_name}/scores” - publish the scores of teams as a json dictionary with the key as the team names
+    scores = {"Team1": 10, "Team2": 20}
+    client.publish(f"games/{new_player.lobby_name}/scores", json.dumps(scores))
+
+
+    # Move player: “games/{lobby_name}/{player_name}/move” - publish to it to choose a move. 
+    # Moves will be resolved in the order of whoever makes the decision first, so if another player moves into the space 
+    # you want to move, you will be stopped. You also cannot move into walls or other players’ current positions
+    # Moves and their corresponding coordinate shifts are:
+    # RIGHT - (0, +1)
+    # LEFT - (0, -1)
+    # UP - (-1, 0)
+    # DOWN - (+1, 0)
+    client.publish(f"games/{new_player.lobby_name}/{new_player.player_name}/move", "UP")
+
+    # Start the MQTT client loop
+    client.loop_start()
