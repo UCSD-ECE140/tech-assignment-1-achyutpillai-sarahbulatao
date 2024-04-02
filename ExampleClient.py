@@ -39,15 +39,17 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 
 # with this callback you can see if your publish was successful
-def on_publish(client, userdata, mid, properties=None):
-    """
-        Prints mid to stdout to reassure a successful publish ( used as callback for publish )
-        :param client: the client itself
-        :param userdata: userdata is set when initiating the client, here it is userdata=None
-        :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
-        :param properties: can be used in MQTTv5, but is optional
-    """
-    print("mid: " + str(mid))
+def on_publish(client, userdata, mid, reasonCode, properties=None):
+    print("Published message with mid {}.".format(mid))
+# def on_publish(client, userdata, mid, properties=None):
+#     """
+#         Prints mid to stdout to reassure a successful publish ( used as callback for publish )
+#         :param client: the client itself
+#         :param userdata: userdata is set when initiating the client, here it is userdata=None
+#         :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
+#         :param properties: can be used in MQTTv5, but is optional
+#     """
+#     print("mid: " + str(mid))
 
 
 
@@ -84,10 +86,10 @@ def on_message(client, userdata, msg):
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
 # client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
-client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="f16914d0673d48389d1506f00b9613af", userdata=None, protocol=paho.MQTTv5)
+client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="client", userdata=None, protocol=paho.MQTTv5)
 client.on_connect = on_connect
 
-otherClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="otherClient", userdata=None, protocol=paho.MQTTv5)
+otherClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="otherClient", userdata=None, protocol=paho.MQTTv5)
 otherClient.on_connect = on_connect
 
 
@@ -96,13 +98,16 @@ client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 otherClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
 
 # set username and password
-client.username_pw_set("sbulatao", "Meow1sqxst*")
-otherClient.username_pw_set("Benson", "Meow")
+client.username_pw_set("sbulatao", "Meow1sqxst*") 
+otherClient.username_pw_set("Benson", "Catson1!")
 
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
-client.connect("f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud", 8883)
-otherClient.connect("otherClient.s1.eu.hivemq.cloud", 8883)
 
+# client.connect("f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud", 8883)
+# otherClient.connect("f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud", 8883)
+
+client.connect("afa1d2d417284e7cb702e7a83f757095.s1.eu.hivemq.cloud", 8883)
+otherClient.connect("afa1d2d417284e7cb702e7a83f757095.s1.eu.hivemq.cloud", 8883)
 
 # setting callbacks, use separate functions like above for better visibility
 client.on_subscribe = on_subscribe
@@ -114,69 +119,55 @@ otherClient.on_message = on_message
 otherClient.on_publish = on_publish
 
 
+client.loop_start()
+otherClient.loop_start()
+
+
+for _ in range(5):
+    client.publish("encyclopedia/temperature", random.randint(1, 10), qos=1)
+    otherClient.publish("encyclopedia/light", random.randint(1, 10), qos=1)
+    time.sleep(1)
+
+client.loop_stop()
+otherClient.loop_stop() 
+
+
+# receives messages from the topics "encyclopedia/temperature" and "encyclopedia/light"
+receivingClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="receivingClient", userdata=None, protocol=paho.MQTTv5)
+
+receivingClient.on_connect = on_connect
+receivingClient.on_message = on_message
+
+receivingClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+
+receivingClient.username_pw_set("receive", "Received1!")
+
+receivingClient.connect("afa1d2d417284e7cb702e7a83f757095.s1.eu.hivemq.cloud", 8883)
+
+receivingClient.on_subscribe = on_subscribe
+receivingClient.on_message = on_message
+receivingClient.on_publish = on_publish
+
+receivingClient.subscribe("encyclopedia/temperature", qos=1)
+receivingClient.subscribe("encyclopedia/light", qos=1)
+
+receivingClient.loop_start()
+
+time.sleep(5)
+
+receivingClient.loop_stop()
+
+
 # subscribe to all topics of encyclopedia by using the wildcard "#"
-client.subscribe("encyclopedia/#", qos=1)
-otherClient.subscribe("encyclopedia/#", qos=1)
+# client.subscribe("encyclopedia/#", qos=1)
+# otherClient.subscribe("encyclopedia/#", qos=1)
 
 
 # a single publish, this can also be done in loops, etc.
 # client.publish("encyclopedia/temperature", payload="hot", qos=1)
 # otherClient.publish("encyclopedia/temperature", payload="cold", qos=1)
 
-while True:
-    time.sleep(1)
-    client.publish("encyclopedia/temperature", payload="hot", qos=1)
-    otherClient.publish("encyclopedia/temperature", payload="cold", qos=1)
-
-
 
 # loop_forever for simplicity, here you need to stop the loop manually
 # you can also use loop_start and loop_stop
 # client.loop_forever()
-
-# client.loop_start()
-# time.sleep(1)
-
-# for i in range(5):
-#     client.publish("encyclopedia/temperature")
-#     time.sleep(1)
-
-# client.loop_stop()
-
-# print(" First Done")
-
-# client.disconnect()
-
-############################################################################################################
-
-# client1 = paho.Client("client1")
-# client2 = paho.Client("client2")
-
-# client1.on_connect = on_connect
-# client2.on_connect = on_connect
-
-# client1.on_connect = on_connect
-# client2.on_connect = on_connect
-
-# client1.on_message = on_message
-# client2.on_message = on_message
-
-# client1.on_publish = on_publish
-# client2.on_publish = on_publish
-
-# client1.subscribe("chicken")
-# client2.subscribe("beef")
-
-
-# client1.loop_start()
-# client2.loop_start()
-
-# for i in range(5):
-#     client1.publish("chicken", random.randint(0, 100))
-#     client2.publish("beef", random.randint(0, 100))
-#     time.sleep(1)
-
-# client1.loop_stop()
-# client2.loop_stop()
-
-# print("Second Done")
