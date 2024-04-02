@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import random
 import time
 
 
@@ -86,13 +87,21 @@ def on_message(client, userdata, msg):
 client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="f16914d0673d48389d1506f00b9613af", userdata=None, protocol=paho.MQTTv5)
 client.on_connect = on_connect
 
+otherClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="otherClient", userdata=None, protocol=paho.MQTTv5)
+otherClient.on_connect = on_connect
+
 
 # enable TLS for secure connection
 client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+otherClient.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+
 # set username and password
 client.username_pw_set("sbulatao", "Meow1sqxst*")
+otherClient.username_pw_set("Benson", "Meow")
+
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
 client.connect("f16914d0673d48389d1506f00b9613af.s1.eu.hivemq.cloud", 8883)
+otherClient.connect("otherClient.s1.eu.hivemq.cloud", 8883)
 
 
 # setting callbacks, use separate functions like above for better visibility
@@ -100,15 +109,74 @@ client.on_subscribe = on_subscribe
 client.on_message = on_message
 client.on_publish = on_publish
 
+otherClient.on_subscribe = on_subscribe
+otherClient.on_message = on_message
+otherClient.on_publish = on_publish
+
 
 # subscribe to all topics of encyclopedia by using the wildcard "#"
 client.subscribe("encyclopedia/#", qos=1)
+otherClient.subscribe("encyclopedia/#", qos=1)
 
 
 # a single publish, this can also be done in loops, etc.
-client.publish("encyclopedia/temperature", payload="hot", qos=1)
+# client.publish("encyclopedia/temperature", payload="hot", qos=1)
+# otherClient.publish("encyclopedia/temperature", payload="cold", qos=1)
+
+while True:
+    time.sleep(1)
+    client.publish("encyclopedia/temperature", payload="hot", qos=1)
+    otherClient.publish("encyclopedia/temperature", payload="cold", qos=1)
+
 
 
 # loop_forever for simplicity, here you need to stop the loop manually
 # you can also use loop_start and loop_stop
-client.loop_forever()
+# client.loop_forever()
+
+# client.loop_start()
+# time.sleep(1)
+
+# for i in range(5):
+#     client.publish("encyclopedia/temperature")
+#     time.sleep(1)
+
+# client.loop_stop()
+
+# print(" First Done")
+
+# client.disconnect()
+
+############################################################################################################
+
+# client1 = paho.Client("client1")
+# client2 = paho.Client("client2")
+
+# client1.on_connect = on_connect
+# client2.on_connect = on_connect
+
+# client1.on_connect = on_connect
+# client2.on_connect = on_connect
+
+# client1.on_message = on_message
+# client2.on_message = on_message
+
+# client1.on_publish = on_publish
+# client2.on_publish = on_publish
+
+# client1.subscribe("chicken")
+# client2.subscribe("beef")
+
+
+# client1.loop_start()
+# client2.loop_start()
+
+# for i in range(5):
+#     client1.publish("chicken", random.randint(0, 100))
+#     client2.publish("beef", random.randint(0, 100))
+#     time.sleep(1)
+
+# client1.loop_stop()
+# client2.loop_stop()
+
+# print("Second Done")
