@@ -21,15 +21,17 @@ def on_connect(client, userdata, flags, rc, properties=None):
 
 
 # with this callback you can see if your publish was successful
-def on_publish(client, userdata, mid, properties=None):
-    """
-        Prints mid to stdout to reassure a successful publish ( used as callback for publish )
-        :param client: the client itself
-        :param userdata: userdata is set when initiating the client, here it is userdata=None
-        :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
-        :param properties: can be used in MQTTv5, but is optional
-    """
-    print("mid: " + str(mid))
+def on_publish(client, userdata, mid, reasonCode, properties=None):
+    print("mid: {}".format(mid))
+# def on_publish(client, userdata, mid, properties=None):
+#     """
+#         Prints mid to stdout to reassure a successful publish ( used as callback for publish )
+#         :param client: the client itself
+#         :param userdata: userdata is set when initiating the client, here it is userdata=None
+#         :param mid: variable returned from the corresponding publish() call, to allow outgoing messages to be tracked
+#         :param properties: can be used in MQTTv5, but is optional
+#     """
+#     print("mid: " + str(mid))
 
 
 # print which topic was subscribed to
@@ -65,7 +67,8 @@ if __name__ == '__main__':
     username = os.environ.get('USER_NAME')
     password = os.environ.get('PASSWORD')
 
-    client = paho.Client(client_id="Player1", userdata=None, protocol=paho.MQTTv5)
+    # client = paho.Client(client_id="Player1", userdata=None, protocol=paho.MQTTv5)
+    client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="Player1", userdata=None, protocol=paho.MQTTv5)
     
     # enable TLS for secure connection
     client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)

@@ -241,6 +241,7 @@ if __name__ == '__main__':
     # Start the game: “games/{lobby_name}/start” - publish “START” when you want to start the game. 
     # Publish “STOP” when you want to stop the game and clear the data (this will happen by default if all the objects are collected).
     client.publish(f"games/{new_player.lobby_name}/start", "START")
+    # client.publish(f"games/{new_player.lobby_name}/start", "STOP")
 
 
     # Subscribe to the game state: “games/{lobby_name}/{player_name}/game_state” - subscribe to it to see when the game has started and 
@@ -258,7 +259,9 @@ if __name__ == '__main__':
     client.subscribe(f"games/{new_player.lobby_name}/{new_player.player_name}/game_state")
 
 
+
     # Publish scores: “games/{lobby_name}/scores” - publish the scores of teams as a json dictionary with the key as the team names
+    # scores = {new_player.team_name}
     scores = {"Team1": 10, "Team2": 20}
     client.publish(f"games/{new_player.lobby_name}/scores", json.dumps(scores))
 

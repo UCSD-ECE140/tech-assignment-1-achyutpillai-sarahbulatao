@@ -34,8 +34,15 @@ class GameInstanceManager():
         """
         Creates a new client to handle each game
         """
+
+        self.lobby_name = lobby_name
+        self.team_dict = team_dict
+        
+
         # initialize new client
-        self.client = paho.Client(client_id=lobby_name, userdata=None, protocol=paho.MQTTv5)
+        # self.client = paho.Client(client_id=lobby_name, userdata=None, protocol=paho.MQTTv5)
+        self.client = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id=lobby_name, userdata=None, protocol=paho.MQTTv5)
+
         # enable TLS for secure connection
         self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
         # set username and password
@@ -43,7 +50,8 @@ class GameInstanceManager():
         # connect to HiveMQ Cloud on port 8883 (default for MQTT)
         self.client.connect(broker_address, broker_port)
         # handles subscription
-        self.client.on_message = self.on_message
+        # self.client.on_message = self.on_message
+        self.client.on_message = on_message
 
         # subscribes to player movement topics
         for team in team_dict.keys():
@@ -61,4 +69,9 @@ class GameInstanceManager():
     
 
 if __name__ == "__main__":
-    game = GameInstanceManager()
+    lobby_name = "TestLobby"
+    team_dict = {
+        "Team1": ["Player1"],
+        "Team2": ["Player2", "Player3"]
+    }
+    game = GameInstanceManager(lobby_name, team_dict)
