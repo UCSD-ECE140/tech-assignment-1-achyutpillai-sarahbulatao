@@ -220,6 +220,9 @@ if __name__ == '__main__':
 
     # client.loop_forever()
 
+
+
+
     ################################################### ??? CHALLENGE 2 HERE ??? #####################################################
 
     # Create a new player
@@ -276,5 +279,66 @@ if __name__ == '__main__':
     # DOWN - (+1, 0)
     client.publish(f"games/{new_player.lobby_name}/{new_player.player_name}/move", "UP")
 
+
     # Start the MQTT client loop
-    client.loop_start()
+    # client.loop_start()
+
+    # client.publish(f"games/{new_player.lobby_name}/start", "STOP")
+
+#######################################################################################################################
+
+
+
+############################################### GAME FLOW HERE ########################################################
+
+
+
+# Create a lobby and add as many teams and players as necessary
+############################################## LOBBY CREATION HERE ####################################################
+
+
+
+# Start the game
+############################################## GAME START HERE ########################################################
+
+
+
+
+
+# Once the Game client figures that out, it will provide all the players with their localized data in a 5x5 grid with the player at its center
+############################################## GRID HERE #############################################################
+
+
+
+
+
+
+
+# Communicate with your teammates through the MQTT broker (you will need to set up your own topics) and once all players have made a move, all movement from that turn is resolved.
+# Movement rules:
+# You cannot move into the current position of another player
+# If another player moves before you and takes up the square you try to move into, your move will be considered invalid and your turn will be skipped
+# Moving into walls or outside the (0,0) to (9,9) grid area is also invalid
+# Being the first to move onto a coin will collect it and add it to your team’s score.
+############################################## MOVEMENT RULES HERE ###################################################
+
+
+
+
+
+
+
+# Once all the resources have been collected, the game is over and you can unsubscribe from all the topics.
+############################################## UNSUBSCRIBING HERE ####################################################
+
+    # Unsubscribe from the game state topic
+    client.unsubscribe(f"games/{new_player.lobby_name}/{new_player.player_name}/game_state")
+
+    # Unsubscribe from the scores topic
+    client.unsubscribe(f"games/{new_player.lobby_name}/scores")
+
+    # Unsubscribe from the move topic
+    client.unsubscribe(f"games/{new_player.lobby_name}/{new_player.player_name}/move")
+
+    # Unsubscribe from the team's topic
+    client.unsubscribe(f"teams/{new_player.team_name}")
