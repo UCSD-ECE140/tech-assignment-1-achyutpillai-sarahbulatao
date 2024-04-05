@@ -15,6 +15,7 @@
 #
 import time
 import random
+import numpy as np
 
 import paho.mqtt.client as paho
 from paho import mqtt
@@ -76,7 +77,7 @@ def on_message(client, userdata, msg):
         :param msg: the message with topic and payload
     """
     print(msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
-    tempData.append(msg.payload.decode('utf-8'))
+    tempData.append(int(msg.payload.decode('utf-8')))
 
 
 
@@ -88,7 +89,7 @@ port = 8883
 # using MQTT version 5 here, for 3.1.1: MQTTv311, 3.1: MQTTv31
 # userdata is user defined data of any type, updated by user_data_set()
 # client_id is the given name of the client
-pubClient1 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="publisher1", userdata=None, protocol=paho.MQTTv5)
+pubClient1 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="publisher1", userdata=None, protocol=paho.MQTTv5)
 pubClient1.on_connect = on_connect
 pubClient1.on_publish = on_publish
 # enable TLS for secure connection
@@ -98,7 +99,7 @@ pubClient1.username_pw_set(user, pswrd)
 # connect to HiveMQ Cloud on port 8883 (default for MQTT)
 pubClient1.connect(url, port)
 
-pubClient2 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="publisher2", userdata=None, protocol=paho.MQTTv5)
+pubClient2 = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="publisher2", userdata=None, protocol=paho.MQTTv5)
 pubClient2.on_connect = on_connect
 pubClient2.on_publish = on_publish
 # enable TLS for secure connection
@@ -109,7 +110,7 @@ pubClient2.username_pw_set(user, pswrd)
 pubClient2.connect(url, port)
 
 
-subClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION1, client_id="subscriber", userdata=None, protocol=paho.MQTTv5)
+subClient = paho.Client(callback_api_version=paho.CallbackAPIVersion.VERSION2, client_id="subscriber", userdata=None, protocol=paho.MQTTv5)
 subClient.on_connect = on_connect
 subClient.on_subscribe = on_subscribe
 subClient.on_message = on_message
@@ -126,33 +127,55 @@ subClient.subscribe("encyclopedia/temperature", qos=1)
 time.sleep(1)
 subClient.loop_start()
 
+
+client1Data = []
+client2Data = []
 # loop for publishing data
-for i in range(10): 
-    randtemp1 = random.randint(1, 100) # random int between 1 and 100
-    randtemp2 = random.randint(1, 100) # random int between 1 and 100
-    pubClient1.publish("encyclopedia/temperature", payload=randtemp1, qos=1)
-    time.sleep(0.01) # delay so that first client can send without interference
-    pubClient2.publish("encyclopedia/temperature", payload=randtemp2, qos=1)
-    time.sleep(3) # publishes data once every 3 seconds
-    
+try:
+    plt.ion()
+    fig, ax = plt.subplots()
+    plt.title('Random numbers published to and subscribed from Broker')
+    line1, = ax.plot([], client1Data, label='Client 1 Data')
+    line2, = ax.plot([], client2Data, label='Client 2 Data')
+    ax.legend()
+
+    while True:
+
+        randtemp1 = random.randint(1, 100) # random int between 1 and 100
+        randtemp2 = random.randint(1, 100) # random int between 1 and 100
+        pubClient1.publish("encyclopedia/temperature", payload=randtemp1, qos=1)
+        time.sleep(0.1) # delay so that first client can send without interference
+        pubClient2.publish("encyclopedia/temperature", payload=randtemp2, qos=1)
+        time.sleep(1)
+
+        client1Data.append(tempData[-2])
+        client2Data.append(tempData[-1])
+
+        data1_trimmed = client1Data[-6:]
+        data2_trimmed = client2Data[-6:]
+
+        x = np.arange(len(data1_trimmed))
+        line1.set_data(x, data1_trimmed)
+        line2.set_data(x, data2_trimmed)
+
+        ax.relim()
+        ax.autoscale_view()
+
+        plt.pause(0.1)
+        time.sleep(1.8) # delay so that publishes data once every 3 seconds
+
+            
+except KeyboardInterrupt:
+    print('\n Program interrupted by user')
 
 # disconnects all clients and ends loop
 pubClient1.disconnect()
 pubClient2.disconnect()
 subClient.loop_stop()
 subClient.disconnect()
+plt.ioff()
 
 #data from subscriber client
-tempData = [int(x) for x in tempData]
-client1Data = tempData[::2]
-client2Data = tempData[1::2]
 print("All subscribed data on encyclopedia/temperature: ", tempData) #all data subscribed from topic
 print("Data from Client 1: ", client1Data) # data published from client1
 print("Data from Client 2: ", client2Data) # data published from client2
-
-plt.figure(1)
-plt.plot(client1Data, label='Client 1 Data')
-plt.plot(client2Data, label='Client 2 Data')
-plt.legend()
-plt.title('Random numbers published to and subscribed from Broker')
-plt.show()
