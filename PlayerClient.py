@@ -55,66 +55,93 @@ def on_message(client, userdata, msg):
         :param userdata: userdata is set when initiating the client, here it is userdata=None
         :param msg: the message with topic and payload
     """
+    game = []
+    game_state = json.loads(msg.payload)
+    if 'currentPosition' in game_state:
+        current_position = game_state['currentPosition']
+        walls = game_state.get('walls', [])
+        coin1 = game_state.get('coin1', [])
+        coin2 = game_state.get('coin2', [])
+        coin3 = game_state.get('coin3', [])
+        teammate_positions = game_state.get('teammatePositions', [])
+        enemy_positions = game_state.get('enemyPositions', [])
 
-    print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+        player_view = [['None' for _ in range(5)] for _ in range(5)] # creates 5x5 square of Nones
+        # Calculating the starting row and column for the view
+        start_row = current_position[0] - 2
+        start_col = current_position[1] - 2
+        
+        x, y = current_position
+
+        if y > 7:
+            for val in range(5):
+                player_view[val][4] = '.'
+            if y > 8:
+                for val in range(5):
+                    player_view[val][3] = '.'
+        if y < 2:
+            for val in range(5):
+                player_view[val][0] = '.'
+            if y < 1:
+                for val in range(5):
+                    player_view[val][1] = '.'
+
+        if x > 7:
+            for val in range(5):
+                player_view[4][val] = '.'
+            if x > 8:
+                for val in range(5):
+                    player_view[3][val] = '.'
+        if x < 2:
+            for val in range(5):
+                player_view[0][val] = '.'
+            if x < 1:
+                for val in range(5):
+                    player_view[1][val] = '.'
+
+        # Updating the view with walls
+        for wall in walls:
+            wall_row, wall_col = wall
+            player_view[wall_row - start_row][wall_col - start_col] = 'Wall'
+
+        # Updating the view with coins
+        for coin in coin1:
+            coin_row, coin_col = coin
+            player_view[coin_row - start_row][coin_col - start_col] = 'Coin1'
+        for coin in coin2:
+            coin_row, coin_col = coin
+            player_view[coin_row - start_row][coin_col - start_col] = 'Coin2'
+        for coin in coin3:
+            coin_row, coin_col = coin
+            player_view[coin_row - start_row][coin_col - start_col] = 'Coin3'
+
+        # Updating the view with teammate positions
+        for teammate_pos in teammate_positions:
+            teammate_row, teammate_col = teammate_pos
+            player_view[teammate_row - start_row][teammate_col - start_col] = 'Teammate'
+
+        # Updating the view with enemy positions
+        for enemy_pos in enemy_positions:
+            enemy_row, enemy_col = enemy_pos
+            player_view[enemy_row - start_row][enemy_col - start_col] = 'Enemy'
 
 
+        # Updating the view with the player's current position
+        player_view[current_position[0] - start_row][current_position[1] - start_col] = 'Player'
 
-# VALID MOVE
-def is_move_valid(game_state, player_name, move):
-    # Get the player's current position
-    current_position = game_state[player_name]["currentPosition"]
+        # Printing the player's view
+        print()
+        for row in player_view:
+            for item in row:
+                # Format each element with 20 characters of width
+                print('{:<10}'.format(str(item)), end='')
+            print()  # Move to the next line after printing each row
+    else:
+        print('Scores: ' + str(game_state))
 
-    # Calculate the new position based on the move
-    if move == "RIGHT":
-        new_position = [current_position[0], current_position[1] + 1]
-    elif move == "LEFT":
-        new_position = [current_position[0], current_position[1] - 1]
-    elif move == "UP":
-        new_position = [current_position[0] - 1, current_position[1]]
-    elif move == "DOWN":
-        new_position = [current_position[0] + 1, current_position[1]]
+    print('\n')
+    # print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
-    # Check if the new position is within the (0,0) to (9,9) grid area
-    if not (0 <= new_position[0] <= 9 and 0 <= new_position[1] <= 9):
-        return False
-
-    # Check if the new position is a wall or another player's current position
-    if new_position in game_state["walls"] or new_position in game_state["teammatePositions"] or new_position in game_state["enemyPositions"]:
-        return False
-
-    return True
-
-
-
-# GRID
-def generate_grid(game_state, player_name):
-    # Get the player's current position
-    player_position = game_state[player_name]["currentPosition"]
-
-    # Initialize an empty 5x5 grid
-    grid = [["" for _ in range(5)] for _ in range(5)]
-
-    # Fill the grid with the relevant data
-    for i in range(-2, 3):
-        for j in range(-2, 3):
-            # Calculate the absolute position
-            position = [player_position[0] + i, player_position[1] + j]
-
-            # Check if there's a teammate, enemy, coin, or wall at this position
-            if position in game_state["teammatePositions"]:
-                grid[i+2][j+2] = "T"
-            elif position in game_state["enemyPositions"]:
-                grid[i+2][j+2] = "E"
-            elif position in game_state["coin1"] or position in game_state["coin2"] or position in game_state["coin3"]:
-                grid[i+2][j+2] = "C"
-            elif position in game_state["walls"]:
-                grid[i+2][j+2] = "W"
-
-    # The player's position is always at the center of the grid
-    grid[2][2] = "P"
-
-    return grid
 
 
 
@@ -177,24 +204,21 @@ if __name__ == '__main__':
 
 
     while True:
-    # for _ in range(2):
         print("in new round")
-        player_1_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
+
+        time.sleep(1)
+
+        player_1_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
         client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
-        # is_move_valid(game_state, player_name, move)
-        # generate_grid(game_state, player_name)
-        is_move_valid(f"games/{lobby_name}/game_state", player_1, player_1_move)
-        generate_grid(f"games/{lobby_name}/game_state", player_1)
 
-        player_2_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
+
+        player_2_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
         client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
-        is_move_valid(f"games/{lobby_name}/game_state", player_2, player_2_move)
-        generate_grid(f"games/{lobby_name}/game_state", player_2)
 
-        player_3_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
+
+        player_3_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
         client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
-        is_move_valid(f"games/{lobby_name}/game_state", player_3, player_3_move)
-        generate_grid(f"games/{lobby_name}/game_state", player_3)
+        
 
         time.sleep(1)
 

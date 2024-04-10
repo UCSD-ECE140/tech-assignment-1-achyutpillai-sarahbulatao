@@ -60,63 +60,6 @@ def on_message(client, userdata, msg):
 
 
 
-# VALID MOVE
-def is_move_valid(game_state, player_name, move):
-    # Get the player's current position
-    current_position = game_state[player_name]["currentPosition"]
-
-    # Calculate the new position based on the move
-    if move == "RIGHT":
-        new_position = [current_position[0], current_position[1] + 1]
-    elif move == "LEFT":
-        new_position = [current_position[0], current_position[1] - 1]
-    elif move == "UP":
-        new_position = [current_position[0] - 1, current_position[1]]
-    elif move == "DOWN":
-        new_position = [current_position[0] + 1, current_position[1]]
-
-    # Check if the new position is within the (0,0) to (9,9) grid area
-    if not (0 <= new_position[0] <= 9 and 0 <= new_position[1] <= 9):
-        return False
-
-    # Check if the new position is a wall or another player's current position
-    if new_position in game_state["walls"] or new_position in game_state["teammatePositions"] or new_position in game_state["enemyPositions"]:
-        return False
-
-    return True
-
-
-
-# GRID
-def generate_grid(game_state, player_name):
-    # Get the player's current position
-    player_position = game_state[player_name]["currentPosition"]
-
-    # Initialize an empty 5x5 grid
-    grid = [["" for _ in range(5)] for _ in range(5)]
-
-    # Fill the grid with the relevant data
-    for i in range(-2, 3):
-        for j in range(-2, 3):
-            # Calculate the absolute position
-            position = [player_position[0] + i, player_position[1] + j]
-
-            # Check if there's a teammate, enemy, coin, or wall at this position
-            if position in game_state["teammatePositions"]:
-                grid[i+2][j+2] = "T"
-            elif position in game_state["enemyPositions"]:
-                grid[i+2][j+2] = "E"
-            elif position in game_state["coin1"] or position in game_state["coin2"] or position in game_state["coin3"]:
-                grid[i+2][j+2] = "C"
-            elif position in game_state["walls"]:
-                grid[i+2][j+2] = "W"
-
-    # The player's position is always at the center of the grid
-    grid[2][2] = "P"
-
-    return grid
-
-
 
 if __name__ == '__main__':
     load_dotenv(dotenv_path='./credentials.env')
@@ -177,24 +120,17 @@ if __name__ == '__main__':
 
 
     while True:
-    # for _ in range(2):
         print("in new round")
         player_1_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
         client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
-        # is_move_valid(game_state, player_name, move)
-        # generate_grid(game_state, player_name)
-        # is_move_valid(f"games/{lobby_name}/game_state", player_1, player_1_move)
-        # generate_grid(f"games/{lobby_name}/game_state", player_1)
+
 
         player_2_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
         client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
-        # is_move_valid(f"games/{lobby_name}/game_state", player_2, player_2_move)
-        # generate_grid(f"games/{lobby_name}/game_state", player_2)
+
 
         player_3_move = input("Enter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
         client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
-        # is_move_valid(f"games/{lobby_name}/game_state", player_3, player_3_move)
-        # generate_grid(f"games/{lobby_name}/game_state", player_3)
 
         time.sleep(1)
 
