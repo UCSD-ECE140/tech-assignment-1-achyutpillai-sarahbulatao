@@ -140,7 +140,7 @@ def on_message(client, userdata, msg):
         print('Scores: ' + str(game_state))
 
     print('\n')
-    # print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 
 
@@ -208,17 +208,18 @@ if __name__ == '__main__':
 
         time.sleep(1)
 
-        player_1_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
-        client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
+        if player_1 == "Player1":
+            player_1_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
+            client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
 
+        elif player_2 == "Player2":
+            player_2_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
+            client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
 
-        player_2_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
-        client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
+        elif player_3 == "Player3":
+            player_3_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
+            client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
 
-
-        player_3_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
-        client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
-        
 
         time.sleep(1)
 
