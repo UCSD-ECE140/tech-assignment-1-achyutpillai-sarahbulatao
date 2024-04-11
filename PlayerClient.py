@@ -6,6 +6,9 @@ import paho.mqtt.client as paho
 from paho import mqtt
 import time
 
+from colorama import Fore # For colored output
+
+game_over = False
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -44,101 +47,222 @@ def on_subscribe(client, userdata, mid, granted_qos, properties=None):
     """
     print("Subscribed: " + str(mid) + " " + str(granted_qos))
 
-
 # print message, useful for checking if it was successful
 def on_message(client, userdata, msg):
     """
-        Prints a mqtt message to stdout ( used as callback for subscribe )
-        :param client: the client itself
-        :param userdata: userdata is set when initiating the client, here it is userdata=None
-        :param msg: the message with topic and payload
+    Prints a mqtt message to stdout ( used as callback for subscribe )
+    :param client: the client itself
+    :param userdata: userdata is set when initiating the client, here it is userdata=None
+    :param msg: the message with topic and payload
     """
-    game = []
-    game_state = json.loads(msg.payload)
+    global game_over
+    try:
+        game_state = json.loads(msg.payload)
+    except json.JSONDecodeError:
+        # print(f"Invalid JSON: {msg.payload}")
+        # return
+        if msg.payload == b'Game Over: All coins have been collected':
+                game_over = True
+                print(Fore.WHITE + str(msg.payload.decode('utf-8')))
+        else:
+            print(f"Invalid JSON: {msg.payload}")
+        return
+
     if 'currentPosition' in game_state:
         current_position = game_state['currentPosition']
+        # print(Fore.GREEN + 'Current Position: ' + str(current_position))
+
         walls = game_state.get('walls', [])
-        coin1 = game_state.get('coin1', [])
-        coin2 = game_state.get('coin2', [])
-        coin3 = game_state.get('coin3', [])
+        # print(Fore.BLUE + 'Walls: ' + str(walls))
+        coins = {
+            'Coin1': game_state.get('coin1', []),
+            'Coin2': game_state.get('coin2', []),
+            'Coin3': game_state.get('coin3', []),
+        }
+        # print(Fore.YELLOW + 'Coins: ' + str(coins))
+
         teammate_positions = game_state.get('teammatePositions', [])
+        # print(Fore.CYAN + 'Teammate Positions: ' + str(teammate_positions))
+
         enemy_positions = game_state.get('enemyPositions', [])
+        # print(Fore.RED + 'Enemy Positions: ' + str(enemy_positions))
 
-        player_view = [['None' for _ in range(5)] for _ in range(5)] # creates 5x5 square of Nones
+        player_view = [['None' for _ in range(5)] for _ in range(5)]  # creates 5x5 square of Nones
+
         # Calculating the starting row and column for the view
-        start_row = current_position[0] - 2
-        start_col = current_position[1] - 2
-        
-        x, y = current_position
+        start_row, start_col = [pos - 2 for pos in current_position]
 
-        if y > 7:
-            for val in range(5):
-                player_view[val][4] = '.'
-            if y > 8:
-                for val in range(5):
-                    player_view[val][3] = '.'
-        if y < 2:
-            for val in range(5):
-                player_view[val][0] = '.'
-            if y < 1:
-                for val in range(5):
-                    player_view[val][1] = '.'
+        # Update the player's view based on their current position
+        update_player_view(player_view, current_position, start_row, start_col)
 
-        if x > 7:
-            for val in range(5):
-                player_view[4][val] = '.'
-            if x > 8:
-                for val in range(5):
-                    player_view[3][val] = '.'
-        if x < 2:
-            for val in range(5):
-                player_view[0][val] = '.'
-            if x < 1:
-                for val in range(5):
-                    player_view[1][val] = '.'
-
-        # Updating the view with walls
+        # Update the player's view with walls, coins, teammates, and enemies
         for wall in walls:
-            wall_row, wall_col = wall
-            player_view[wall_row - start_row][wall_col - start_col] = 'Wall'
+            update_view(player_view, wall, start_row, start_col, 'Wall')
+        for coin_type, coin_positions in coins.items():
+            for coin in coin_positions:
+                update_view(player_view, coin, start_row, start_col, coin_type)
+        for teammate in teammate_positions:
+            update_view(player_view, teammate, start_row, start_col, 'Teammate')
+        for enemy in enemy_positions:
+            update_view(player_view, enemy, start_row, start_col, 'Enemy')
 
-        # Updating the view with coins
-        for coin in coin1:
-            coin_row, coin_col = coin
-            player_view[coin_row - start_row][coin_col - start_col] = 'Coin1'
-        for coin in coin2:
-            coin_row, coin_col = coin
-            player_view[coin_row - start_row][coin_col - start_col] = 'Coin2'
-        for coin in coin3:
-            coin_row, coin_col = coin
-            player_view[coin_row - start_row][coin_col - start_col] = 'Coin3'
-
-        # Updating the view with teammate positions
-        for teammate_pos in teammate_positions:
-            teammate_row, teammate_col = teammate_pos
-            player_view[teammate_row - start_row][teammate_col - start_col] = 'Teammate'
-
-        # Updating the view with enemy positions
-        for enemy_pos in enemy_positions:
-            enemy_row, enemy_col = enemy_pos
-            player_view[enemy_row - start_row][enemy_col - start_col] = 'Enemy'
-
-
-        # Updating the view with the player's current position
-        player_view[current_position[0] - start_row][current_position[1] - start_col] = 'Player'
-
-        # Printing the player's view
+        # Print the player's view
         print()
+        # for row in player_view:
+        #     print(''.join('{:<10}'.format(item) for item in row))
+        print(Fore.WHITE + msg.topic)
+
         for row in player_view:
             for item in row:
-                # Format each element with 20 characters of width
-                print('{:<10}'.format(str(item)), end='')
-            print()  # Move to the next line after printing each row
+                if item == 'Player':
+                    print(Fore.GREEN + '{:<10}'.format(item), end='')
+                elif item == 'Wall':
+                    print(Fore.BLUE + '{:<10}'.format(item), end='')
+                elif item.startswith('Coin'):
+                    print(Fore.YELLOW + '{:<10}'.format(item), end='')
+                elif item == 'Teammate':
+                    print(Fore.CYAN + '{:<10}'.format(item), end='')
+                elif item == 'Enemy':
+                    print(Fore.RED + '{:<10}'.format(item), end='')
+                else:
+                    print(Fore.WHITE + '{:<10}'.format(item), end='')
+            print()
+       
     else:
-        print('Scores: ' + str(game_state))
+        print(Fore.WHITE + 'Scores: ' + str(game_state))
 
-    print('\n')
-    # print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    print('\n' + Fore.WHITE)
+    # print(Fore.WHITE + "message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+
+
+def update_player_view(view, position, start_row, start_col):
+    x, y = position
+    if y > 7:
+        for val in range(5):
+            view[val][4] = '.'
+        if y > 8:
+            for val in range(5):
+                view[val][3] = '.'
+    if y < 2:
+        for val in range(5):
+            view[val][0] = '.'
+        if y < 1:
+            for val in range(5):
+                view[val][1] = '.'
+    if x > 7:
+        for val in range(5):
+            view[4][val] = '.'
+        if x > 8:
+            for val in range(5):
+                view[3][val] = '.'
+    if x < 2:
+        for val in range(5):
+            view[0][val] = '.'
+        if x < 1:
+            for val in range(5):
+                view[1][val] = '.'
+    view[position[0] - start_row][position[1] - start_col] = 'Player'
+
+
+def update_view(view, position, start_row, start_col, item):
+    try:
+        view[position[0] - start_row][position[1] - start_col] = item
+    except IndexError:
+        pass  # Ignore positions outside of the player's view
+# # print message, useful for checking if it was successful
+# def on_message(client, userdata, msg):
+#     """
+#         Prints a mqtt message to stdout ( used as callback for subscribe )
+#         :param client: the client itself
+#         :param userdata: userdata is set when initiating the client, here it is userdata=None
+#         :param msg: the message with topic and payload
+#     """
+#     game = []
+#     game_state = json.loads(msg.payload)
+#     if 'currentPosition' in game_state:
+#         current_position = game_state['currentPosition']
+#         walls = game_state.get('walls', [])
+#         coin1 = game_state.get('coin1', [])
+#         coin2 = game_state.get('coin2', [])
+#         coin3 = game_state.get('coin3', [])
+#         teammate_positions = game_state.get('teammatePositions', [])
+#         enemy_positions = game_state.get('enemyPositions', [])
+
+#         player_view = [['None' for _ in range(5)] for _ in range(5)] # creates 5x5 square of Nones
+#         # Calculating the starting row and column for the view
+#         start_row = current_position[0] - 2
+#         start_col = current_position[1] - 2
+        
+#         x, y = current_position
+
+#         if y > 7:
+#             for val in range(5):
+#                 player_view[val][4] = '.'
+#             if y > 8:
+#                 for val in range(5):
+#                     player_view[val][3] = '.'
+#         if y < 2:
+#             for val in range(5):
+#                 player_view[val][0] = '.'
+#             if y < 1:
+#                 for val in range(5):
+#                     player_view[val][1] = '.'
+
+#         if x > 7:
+#             for val in range(5):
+#                 player_view[4][val] = '.'
+#             if x > 8:
+#                 for val in range(5):
+#                     player_view[3][val] = '.'
+#         if x < 2:
+#             for val in range(5):
+#                 player_view[0][val] = '.'
+#             if x < 1:
+#                 for val in range(5):
+#                     player_view[1][val] = '.'
+
+#         # Updating the view with walls
+#         for wall in walls:
+#             wall_row, wall_col = wall
+#             player_view[wall_row - start_row][wall_col - start_col] = 'Wall'
+
+#         # Updating the view with coins
+#         for coin in coin1:
+#             coin_row, coin_col = coin
+#             player_view[coin_row - start_row][coin_col - start_col] = 'Coin1'
+#         for coin in coin2:
+#             coin_row, coin_col = coin
+#             player_view[coin_row - start_row][coin_col - start_col] = 'Coin2'
+#         for coin in coin3:
+#             coin_row, coin_col = coin
+#             player_view[coin_row - start_row][coin_col - start_col] = 'Coin3'
+
+#         # Updating the view with teammate positions
+#         for teammate_pos in teammate_positions:
+#             teammate_row, teammate_col = teammate_pos
+#             player_view[teammate_row - start_row][teammate_col - start_col] = 'Teammate'
+
+#         # Updating the view with enemy positions
+#         for enemy_pos in enemy_positions:
+#             enemy_row, enemy_col = enemy_pos
+#             player_view[enemy_row - start_row][enemy_col - start_col] = 'Enemy'
+
+
+#         # Updating the view with the player's current position
+#         player_view[current_position[0] - start_row][current_position[1] - start_col] = 'Player'
+
+#         # Printing the player's view
+#         print()
+#         for row in player_view:
+#             for item in row:
+#                 # Format each element with 20 characters of width
+#                 print('{:<10}'.format(str(item)), end='')
+#             print()  # Move to the next line after printing each row
+#     else:
+#         print('Scores: ' + str(game_state))
+
+#     print('\n')
+#     # print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 
 if __name__ == '__main__':
@@ -177,16 +301,17 @@ if __name__ == '__main__':
                                             'team_name':'ATeam',
                                             'player_name' : players[0]}))
     
-    # client.publish("new_game", json.dumps({'lobby_name':lobby_name,
-    #                                         'team_name':'ATeam',
-    #                                         'player_name' : players[1]}))
+    client.publish("new_game", json.dumps({'lobby_name':lobby_name,
+                                            'team_name':'ATeam',
+                                            'player_name' : players[1]}))
     
-    # client.publish("new_game", json.dumps({'lobby_name':lobby_name,
-    #                                     'team_name':'BTeam',
-    #                                     'player_name' : players[2]}))
-    # client.publish("new_game", json.dumps({'lobby_name':lobby_name,
-    #                                     'team_name':'BTeam',
-    #                                     'player_name' : players[3]}))
+    client.publish("new_game", json.dumps({'lobby_name':lobby_name,
+                                        'team_name':'BTeam',
+                                        'player_name' : players[2]}))
+    
+    client.publish("new_game", json.dumps({'lobby_name':lobby_name,
+                                        'team_name':'BTeam',
+                                        'player_name' : players[3]}))
 
     time.sleep(3) # Wait 3 seconds to resolve game start
     # client.publish(f"games/{lobby_name}/start", "START")
@@ -198,26 +323,33 @@ if __name__ == '__main__':
             client.publish(f"games/{lobby_name}/start", "START")
 
     client.loop_start()
-    while True:
+    while not game_over:
         try:
-            player = player_1
-            time.sleep(3)
-            command = input(str(player) + ", enter a direction to move in: ").upper()
-            if command == "UP":
-                client.publish(f"games/{lobby_name}/{player}/move", "UP")
-            elif command == "DOWN":
-                client.publish(f"games/{lobby_name}/{player}/move", "DOWN")
-            elif command == "RIGHT":
-                client.publish(f"games/{lobby_name}/{player}/move", "RIGHT")
-            elif command == "LEFT":
-                client.publish(f"games/{lobby_name}/{player}/move", "LEFT")
-            else:
-                print("Not a Valid Direction")
+            # player = player_1
+            time.sleep(0.5)
+            for player in players:
+                time.sleep(0.1)
+                command = input(str(player) + ", enter a direction to move in: ").upper()
+                if command == "UP" or command == "\x1b[A":
+                    client.publish(f"games/{lobby_name}/{player}/move", "UP")
+                elif command == "DOWN" or command == "\x1b[B":
+                    client.publish(f"games/{lobby_name}/{player}/move", "DOWN")
+                elif command == "RIGHT" or command == "\x1b[C":
+                    client.publish(f"games/{lobby_name}/{player}/move", "RIGHT")
+                elif command == "LEFT" or command == "\x1b[D":
+                    client.publish(f"games/{lobby_name}/{player}/move", "LEFT")
+                else:
+                    print("Not a Valid Direction")
+            time.sleep(1.5)
 
-            
         except KeyboardInterrupt:
             print('\nBreak')
             client.publish(f"games/{lobby_name}/start", "STOP")
             client.loop_stop()
             break
+
+    client.publish(f"games/{lobby_name}/start", "STOP")
+    client.loop_stop()
+    time.sleep(1)
+    client.disconnect()
 
