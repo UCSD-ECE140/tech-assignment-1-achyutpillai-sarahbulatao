@@ -116,7 +116,7 @@ def on_message(client, userdata, msg):
                 if item == 'Player':
                     print(Fore.GREEN + '{:<10}'.format(item), end='')
                 elif item == 'Wall':
-                    print(Fore.RED + '{:<10}'.format(item), end='')
+                    print(Fore.BLUE + '{:<10}'.format(item), end='')
                 elif item.startswith('Coin'):
                     print(Fore.YELLOW + '{:<10}'.format(item), end='')
                 elif item == 'Teammate':
@@ -133,7 +133,7 @@ def on_message(client, userdata, msg):
         print('Scores: ' + str(game_state))
 
     print('\n')
-    print("message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
+    print(Fore.WHITE + "message: " + msg.topic + " " + str(msg.qos) + " " + str(msg.payload))
 
 
 def update_player_view(view, position, start_row, start_col):
@@ -296,6 +296,7 @@ if __name__ == '__main__':
     player_1 = "Player1"
     player_2 = "Player2"
     player_3 = "Player3"
+    player_4 = "Player4" 
 
     client.subscribe(f"games/{lobby_name}/lobby")
     client.subscribe(f'games/{lobby_name}/+/game_state')
@@ -313,65 +314,143 @@ if __name__ == '__main__':
     time.sleep(1)
     
     client.publish("new_game", json.dumps({'lobby_name':lobby_name,
-                                        'team_name':'BTeam',
+                                        'team_name':'ATeam',
                                         'player_name' : player_3}))
+    
+    time.sleep(1)
+    
+    client.publish("new_game", json.dumps({'lobby_name':lobby_name,
+                                        'team_name':'BTeam',
+                                        'player_name' : player_4}))
 
     time.sleep(1) # Wait a second to resolve game start
-    client.publish(f"games/{lobby_name}/start", "START")
+    # client.publish(f"games/{lobby_name}/start", "START")
 
 
-    client.loop_start()
+    # client.loop_start()
 
 
 ######################################## CHALLENGE 2 HERE #############################################
 
 
+    command = ''
+    while command != 'START':
+        command = input("Type 'START' to start the game: ").upper()
+        if command == 'START':
+            client.publish(f"games/{lobby_name}/start", "START")
+
+    client.loop_start()
 
     while True:
+        try:
+            time.sleep(1)
+            player_1_move = input(str(player_1) + ", enter a direction to move in: ").upper()
+           
+            if player_1_move == "UP":
+                client.publish(f"games/{lobby_name}/{player_1}/move", "UP")
+            elif player_1_move == "DOWN":
+                client.publish(f"games/{lobby_name}/{player_1}/move", "DOWN")
+            elif player_1_move == "RIGHT":
+                client.publish(f"games/{lobby_name}/{player_1}/move", "RIGHT")
+            elif player_1_move == "LEFT":
+                client.publish(f"games/{lobby_name}/{player_1}/move", "LEFT")
+            else:
+                print("Not a Valid Direction")
 
-        # if game_over:
-        #     break
+            player_2_move = input(str(player_2) + ", enter a direction to move in: ").upper()
+            if player_2_move == "UP":
+                client.publish(f"games/{lobby_name}/{player_2}/move", "UP")
+            elif player_2_move == "DOWN":
+                client.publish(f"games/{lobby_name}/{player_2}/move", "DOWN")
+            elif player_2_move == "RIGHT":
+                client.publish(f"games/{lobby_name}/{player_2}/move", "RIGHT")
+            elif player_2_move == "LEFT":
+                client.publish(f"games/{lobby_name}/{player_2}/move", "LEFT")
+            else:
+                print("Not a Valid Direction")
 
-        print("in new round")
-
-        time.sleep(1)
-
-    # if player_1 == "Player1":
-        player_1_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
-        client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
-
-    # if player_2 == "Player2":
-        player_2_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
-        client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
-
-    # if player_3 == "Player3":
-        player_3_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
-        client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
-
-        if player_1_move == "STOP" or player_2_move == "STOP" or player_3_move == "STOP":
-            break # End the game
-
-        time.sleep(1)
+            player_3_move = input(str(player_3) + ", enter a direction to move in: ").upper()
+            if player_3_move == "UP":
+                client.publish(f"games/{lobby_name}/{player_3}/move", "UP")
+            elif player_3_move == "DOWN":
+                client.publish(f"games/{lobby_name}/{player_3}/move", "DOWN")
+            elif player_3_move == "RIGHT":
+                client.publish(f"games/{lobby_name}/{player_3}/move", "RIGHT")
+            elif player_3_move == "LEFT":
+                client.publish(f"games/{lobby_name}/{player_3}/move", "LEFT")
+            else:
+                print("Not a Valid Direction")
 
 
-    print("Game Over")
+            player_4_move = input(str(player_4) + ", enter a direction to move in: ").upper()
+            if player_4_move == "UP":
+                client.publish(f"games/{lobby_name}/{player_4}/move", "UP")
+            elif player_4_move == "DOWN":
+                client.publish(f"games/{lobby_name}/{player_4}/move", "DOWN")
+            elif player_4_move == "RIGHT":
+                client.publish(f"games/{lobby_name}/{player_4}/move", "RIGHT")
+            elif player_4_move == "LEFT":
+                client.publish(f"games/{lobby_name}/{player_4}/move", "LEFT")
+            else:
+                print("Not a Valid Direction")
 
-    client.publish(f"games/{lobby_name}/start", "STOP")
-    client.loop_stop()
-    # Unsubscribe from the game state topic
-    client.unsubscribe(f"games/{lobby_name}/{player_1}/game_state")
-    client.unsubscribe(f"games/{lobby_name}/{player_2}/game_state")
-    client.unsubscribe(f"games/{lobby_name}/{player_3}/game_state")
+            
+        except KeyboardInterrupt:
+            print('\nBreak')
+            client.publish(f"games/{lobby_name}/start", "STOP")
+            client.loop_stop()
+            break
 
-    # Unsubscribe from the scores topic
-    client.unsubscribe(f"games/{lobby_name}/scores")
 
-    # Unsubscribe from the move topic
-    client.unsubscribe(f"games/{lobby_name}/{player_1}/move")
-    client.unsubscribe(f"games/{lobby_name}/{player_2}/move")
-    client.unsubscribe(f"games/{lobby_name}/{player_3}/move")
 
-    # Unsubscribe from the team's topic
-    client.unsubscribe(f"teams/{'ATeam'}")
-    client.unsubscribe(f"teams/{'BTeam'}")
 
+    # while True:
+
+    #     print("in new round")
+
+    #     time.sleep(1)
+
+    # # if player_1 == "Player1":
+    #     player_1_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 1: ")
+    #     client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
+
+    # # if player_2 == "Player2":
+    #     player_2_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 2: ")
+    #     client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
+
+    # # if player_3 == "Player3":
+    #     player_3_move = input("\nEnter move(UP,DOWN,LEFT,RIGHT) for Player 3: ")
+    #     client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
+
+    #     # if player_1_move == "STOP" or player_2_move == "STOP" or player_3_move == "STOP":
+    #     #     break # End the game
+
+    #     time.sleep(1)
+
+
+    # print("Game Over")
+
+    # client.publish(f"games/{lobby_name}/start", "STOP")
+    # client.loop_stop()
+    # # Unsubscribe from the game state topic
+    # client.unsubscribe(f"games/{lobby_name}/{player_1}/game_state")
+    # client.unsubscribe(f"games/{lobby_name}/{player_2}/game_state")
+    # client.unsubscribe(f"games/{lobby_name}/{player_3}/game_state")
+
+    # # Unsubscribe from the scores topic
+    # client.unsubscribe(f"games/{lobby_name}/scores")
+
+    # # Unsubscribe from the move topic
+    # client.unsubscribe(f"games/{lobby_name}/{player_1}/move")
+    # client.unsubscribe(f"games/{lobby_name}/{player_2}/move")
+    # client.unsubscribe(f"games/{lobby_name}/{player_3}/move")
+
+    # # Unsubscribe from the team's topic
+    # client.unsubscribe(f"teams/{'ATeam'}")
+    # client.unsubscribe(f"teams/{'BTeam'}")
+
+
+
+
+# WORK ON GAME OVER SETTING
+# ALL COINS COLLECTED
