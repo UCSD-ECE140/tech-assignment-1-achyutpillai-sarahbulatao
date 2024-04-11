@@ -7,6 +7,7 @@ from paho import mqtt
 import time
 
 from game import Game
+from colorama import Fore # For colored output
 
 
 # setting callbacks for different events to see if it works, print the message etc.
@@ -60,19 +61,32 @@ def on_message(client, userdata, msg):
     try:
         game_state = json.loads(msg.payload)
     except json.JSONDecodeError:
-        print(f"Invalid JSON: {msg.payload}")
+        # print(f"Invalid JSON: {msg.payload}")
+        # return
+        if msg.payload == b'Game Over: All coins have been collected':
+                game_over = True
+        else:
+            print(f"Invalid JSON: {msg.payload}")
         return
 
     if 'currentPosition' in game_state:
         current_position = game_state['currentPosition']
+        print(Fore.GREEN + 'Current Position: ' + str(current_position))
+
         walls = game_state.get('walls', [])
+        print(Fore.BLUE + 'Walls: ' + str(walls))
         coins = {
             'Coin1': game_state.get('coin1', []),
             'Coin2': game_state.get('coin2', []),
             'Coin3': game_state.get('coin3', []),
         }
+        print(Fore.YELLOW + 'Coins: ' + str(coins))
+
         teammate_positions = game_state.get('teammatePositions', [])
+        print(Fore.CYAN + 'Teammate Positions: ' + str(teammate_positions))
+
         enemy_positions = game_state.get('enemyPositions', [])
+        print(Fore.RED + 'Enemy Positions: ' + str(enemy_positions))
 
         player_view = [['None' for _ in range(5)] for _ in range(5)]  # creates 5x5 square of Nones
 
@@ -95,8 +109,26 @@ def on_message(client, userdata, msg):
 
         # Print the player's view
         print()
+        # for row in player_view:
+        #     print(''.join('{:<10}'.format(item) for item in row))
         for row in player_view:
-            print(''.join('{:<10}'.format(item) for item in row))
+            for item in row:
+                if item == 'Player':
+                    print(Fore.GREEN + '{:<10}'.format(item), end='')
+                elif item == 'Wall':
+                    print(Fore.RED + '{:<10}'.format(item), end='')
+                elif item.startswith('Coin'):
+                    print(Fore.YELLOW + '{:<10}'.format(item), end='')
+                elif item == 'Teammate':
+                    print(Fore.CYAN + '{:<10}'.format(item), end='')
+                elif item == 'Enemy':
+                    print(Fore.RED + '{:<10}'.format(item), end='')
+                elif item == 'None':
+                    print(Fore.WHITE + '{:<10}'.format(item), end='')
+                else:
+                    print('{:<10}'.format(item), end='')
+            print()
+       
     else:
         print('Scores: ' + str(game_state))
 
@@ -296,6 +328,9 @@ if __name__ == '__main__':
 
 
     while True:
+
+        # if game_over:
+        #     break
 
         print("in new round")
 
