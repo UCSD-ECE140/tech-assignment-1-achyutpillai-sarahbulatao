@@ -126,7 +126,7 @@ def on_message(client, userdata, msg):
                 elif item == 'None':
                     print(Fore.WHITE + '{:<10}'.format(item), end='')
                 else:
-                    print('{:<10}'.format(item), end='')
+                    print(Fore.WHITE + '{:<10}'.format(item), end='')
             print()
        
     else:
