@@ -9,7 +9,6 @@ import time
 from game import Game
 from colorama import Fore # For colored output
 
-game_over = False
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -62,19 +61,14 @@ def on_message(client, userdata, msg):
     :param userdata: userdata is set when initiating the client, here it is userdata=None
     :param msg: the message with topic and payload
     """
-
-    global game_over
-
     try:
         game_state = json.loads(msg.payload)
+        game_over = False
     except json.JSONDecodeError:
         # print(f"Invalid JSON: {msg.payload}")
         # return
         if msg.payload == b'Game Over: All coins have been collected':
-            print("Game Over: All coins have been collected")
-            print("Scores: " + str(game_state))
             game_over = True
-            return
         else:
             print(f"Invalid JSON: {msg.payload}")
         return
@@ -239,6 +233,10 @@ if __name__ == '__main__':
                                         'player_name' : player_4}))
 
     time.sleep(1) # Wait a second to resolve game start
+    # client.publish(f"games/{lobby_name}/start", "START")
+
+
+    # client.loop_start()
 
 
     command = ''
@@ -249,16 +247,13 @@ if __name__ == '__main__':
 
     client.loop_start()
 
-    counter = 0
 
-    while not game_over:
+    while True:
         try:
-            counter +=1
-            print("\nRound: ", counter)
 
             time.sleep(1)
-
             player_1_move = input(str(player_1) + ", enter a direction to move in: ").upper()
+           
             if player_1_move == "UP":
                 client.publish(f"games/{lobby_name}/{player_1}/move", "UP")
             elif player_1_move == "DOWN":
@@ -269,7 +264,6 @@ if __name__ == '__main__':
                 client.publish(f"games/{lobby_name}/{player_1}/move", "LEFT")
             else:
                 print("Not a Valid Direction")
-
 
             player_2_move = input(str(player_2) + ", enter a direction to move in: ").upper()
             if player_2_move == "UP":
@@ -282,7 +276,6 @@ if __name__ == '__main__':
                 client.publish(f"games/{lobby_name}/{player_2}/move", "LEFT")
             else:
                 print("Not a Valid Direction")
-
 
             player_3_move = input(str(player_3) + ", enter a direction to move in: ").upper()
             if player_3_move == "UP":
@@ -309,33 +302,9 @@ if __name__ == '__main__':
             else:
                 print("Not a Valid Direction")
 
-            time.sleep(1)
-
-
+            
         except KeyboardInterrupt:
             print('\nBreak')
             client.publish(f"games/{lobby_name}/start", "STOP")
             client.loop_stop()
-
-
-    # print("Game Over")
-
-    client.publish(f"games/{lobby_name}/start", "STOP")
-    client.loop_stop()
-
-    # Unsubscribe from the game state topic
-    client.unsubscribe(f"games/{lobby_name}/{player_1}/game_state")
-    client.unsubscribe(f"games/{lobby_name}/{player_2}/game_state")
-    client.unsubscribe(f"games/{lobby_name}/{player_3}/game_state")
-
-    # Unsubscribe from the scores topic
-    client.unsubscribe(f"games/{lobby_name}/scores")
-
-    # Unsubscribe from the move topic
-    client.unsubscribe(f"games/{lobby_name}/{player_1}/move")
-    client.unsubscribe(f"games/{lobby_name}/{player_2}/move")
-    client.unsubscribe(f"games/{lobby_name}/{player_3}/move")
-
-    # Unsubscribe from the team's topic
-    client.unsubscribe(f"teams/{'ATeam'}")
-    client.unsubscribe(f"teams/{'BTeam'}")
+            break
