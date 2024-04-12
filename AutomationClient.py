@@ -8,7 +8,10 @@ import time
 
 from game import Game
 from colorama import Fore # For colored output
+import math
+import random
 
+game_over = False
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -53,6 +56,64 @@ def on_subscribe(client, userdata, mid, granted_qos, properties=None):
 ######################################## CHALLENGE 2 HERE #############################################
 
 
+def get_closest_coin(current_position, coins):
+    closest_coin = None
+    closest_distance = math.inf
+
+    for coin, positions in coins.items():
+        for position in positions:
+            distance = math.sqrt((current_position[0] - position[0])**2 + (current_position[1] - position[1])**2)
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_coin = (coin, position)
+
+    return closest_coin
+
+# def get_next_move(current_position, coin_position):
+#     if coin_position[0] > current_position[0]:
+#         return 'RIGHT'
+#     elif coin_position[0] < current_position[0]:
+#         return 'LEFT'
+#     elif coin_position[1] > current_position[1]:
+#         return 'UP'
+#     elif coin_position[1] < current_position[1]:
+#         return 'DOWN'
+#     else:
+#         return random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+
+def get_valid_moves(current_position, walls):
+    valid_moves = []
+    for move in ['UP', 'DOWN', 'LEFT', 'RIGHT']:
+        new_position = get_new_position(current_position, move)
+        if new_position not in walls:
+            valid_moves.append(move)
+    return valid_moves
+
+def get_new_position(current_position, move):
+    if move == 'UP':
+        return [current_position[0], current_position[1] + 1]
+    elif move == 'DOWN':
+        return [current_position[0], current_position[1] - 1]
+    elif move == 'LEFT':
+        return [current_position[0] - 1, current_position[1]]
+    elif move == 'RIGHT':
+        return [current_position[0] + 1, current_position[1]]
+    else:
+        return current_position
+
+def get_next_move(current_position, coin_position, walls):
+    valid_moves = get_valid_moves(current_position, walls)
+    if not valid_moves:
+        return random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+    else:
+        distances = {move: get_distance(get_new_position(current_position, move), coin_position) for move in valid_moves}
+        return min(distances, key=distances.get)
+
+def get_distance(position1, position2):
+    return math.sqrt((position1[0] - position2[0])**2 + (position1[1] - position2[1])**2)
+
+
+
 # print message, useful for checking if it was successful
 def on_message(client, userdata, msg):
     """
@@ -61,14 +122,20 @@ def on_message(client, userdata, msg):
     :param userdata: userdata is set when initiating the client, here it is userdata=None
     :param msg: the message with topic and payload
     """
+
+    global game_over
+    global next_move
+
     try:
         game_state = json.loads(msg.payload)
-        game_over = False
     except json.JSONDecodeError:
         # print(f"Invalid JSON: {msg.payload}")
         # return
         if msg.payload == b'Game Over: All coins have been collected':
+            print("Game Over: All coins have been collected")
+            print("Scores: " + str(game_state))
             game_over = True
+            return
         else:
             print(f"Invalid JSON: {msg.payload}")
         return
@@ -85,6 +152,13 @@ def on_message(client, userdata, msg):
             'Coin3': game_state.get('coin3', []),
         }
         print(Fore.YELLOW + 'Coins: ' + str(coins))
+
+        
+        closest_coin = get_closest_coin(current_position, coins)
+        if closest_coin:
+            print(f"The closest coin is {closest_coin[0]} at position {closest_coin[1]}")
+            next_move = get_next_move(current_position, closest_coin[1], walls)
+            print(f"The next move should be: {next_move}")
 
         teammate_positions = game_state.get('teammatePositions', [])
         print(Fore.CYAN + 'Teammate Positions: ' + str(teammate_positions))
@@ -197,6 +271,7 @@ if __name__ == '__main__':
     client.connect(broker_address, broker_port)
 
     # setting callbacks, use separate functions like above for better visibility
+    client.on_connect = on_connect
     client.on_subscribe = on_subscribe # Can comment out to not print when subscribing to new topics
     client.on_message = on_message
     client.on_publish = on_publish # Can comment out to not print when publishing to topics
@@ -233,10 +308,6 @@ if __name__ == '__main__':
                                         'player_name' : player_4}))
 
     time.sleep(1) # Wait a second to resolve game start
-    # client.publish(f"games/{lobby_name}/start", "START")
-
-
-    # client.loop_start()
 
 
     command = ''
@@ -247,64 +318,58 @@ if __name__ == '__main__':
 
     client.loop_start()
 
+    counter = 0
 
-    while True:
+    while not game_over:
         try:
+            counter +=1
+            print("\nRound: ", counter)
 
             time.sleep(1)
-            player_1_move = input(str(player_1) + ", enter a direction to move in: ").upper()
-           
-            if player_1_move == "UP":
-                client.publish(f"games/{lobby_name}/{player_1}/move", "UP")
-            elif player_1_move == "DOWN":
-                client.publish(f"games/{lobby_name}/{player_1}/move", "DOWN")
-            elif player_1_move == "RIGHT":
-                client.publish(f"games/{lobby_name}/{player_1}/move", "RIGHT")
-            elif player_1_move == "LEFT":
-                client.publish(f"games/{lobby_name}/{player_1}/move", "LEFT")
-            else:
-                print("Not a Valid Direction")
 
-            player_2_move = input(str(player_2) + ", enter a direction to move in: ").upper()
-            if player_2_move == "UP":
-                client.publish(f"games/{lobby_name}/{player_2}/move", "UP")
-            elif player_2_move == "DOWN":
-                client.publish(f"games/{lobby_name}/{player_2}/move", "DOWN")
-            elif player_2_move == "RIGHT":
-                client.publish(f"games/{lobby_name}/{player_2}/move", "RIGHT")
-            elif player_2_move == "LEFT":
-                client.publish(f"games/{lobby_name}/{player_2}/move", "LEFT")
-            else:
-                print("Not a Valid Direction")
+            player_1_move = next_move
+            client.publish(f"games/{lobby_name}/{player_1}/move", player_1_move)
 
-            player_3_move = input(str(player_3) + ", enter a direction to move in: ").upper()
-            if player_3_move == "UP":
-                client.publish(f"games/{lobby_name}/{player_3}/move", "UP")
-            elif player_3_move == "DOWN":
-                client.publish(f"games/{lobby_name}/{player_3}/move", "DOWN")
-            elif player_3_move == "RIGHT":
-                client.publish(f"games/{lobby_name}/{player_3}/move", "RIGHT")
-            elif player_3_move == "LEFT":
-                client.publish(f"games/{lobby_name}/{player_3}/move", "LEFT")
-            else:
-                print("Not a Valid Direction")
+            player_2_move = next_move
+            client.publish(f"games/{lobby_name}/{player_2}/move", player_2_move)
+
+            player_3_move = next_move
+            client.publish(f"games/{lobby_name}/{player_3}/move", player_3_move)
+
+            player_4_move = next_move
+            client.publish(f"games/{lobby_name}/{player_4}/move", player_4_move)
+
+            time.sleep(1)
 
 
-            player_4_move = input(str(player_4) + ", enter a direction to move in: ").upper()
-            if player_4_move == "UP":
-                client.publish(f"games/{lobby_name}/{player_4}/move", "UP")
-            elif player_4_move == "DOWN":
-                client.publish(f"games/{lobby_name}/{player_4}/move", "DOWN")
-            elif player_4_move == "RIGHT":
-                client.publish(f"games/{lobby_name}/{player_4}/move", "RIGHT")
-            elif player_4_move == "LEFT":
-                client.publish(f"games/{lobby_name}/{player_4}/move", "LEFT")
-            else:
-                print("Not a Valid Direction")
 
-            
         except KeyboardInterrupt:
             print('\nBreak')
             client.publish(f"games/{lobby_name}/start", "STOP")
             client.loop_stop()
-            break
+
+
+    # print("Game Over")
+
+    client.publish(f"games/{lobby_name}/start", "STOP")
+    client.loop_stop()
+
+    # Unsubscribe from the game state topic
+    client.unsubscribe(f"games/{lobby_name}/{player_1}/game_state")
+    client.unsubscribe(f"games/{lobby_name}/{player_2}/game_state")
+    client.unsubscribe(f"games/{lobby_name}/{player_3}/game_state")
+    client.unsubscribe(f"games/{lobby_name}/{player_4}/game_state")
+
+    # Unsubscribe from the scores topic
+    client.unsubscribe(f"games/{lobby_name}/scores")
+
+    # Unsubscribe from the move topic
+    client.unsubscribe(f"games/{lobby_name}/{player_1}/move")
+    client.unsubscribe(f"games/{lobby_name}/{player_2}/move")
+    client.unsubscribe(f"games/{lobby_name}/{player_3}/move")
+    client.unsubscribe(f"games/{lobby_name}/{player_4}/move")
+
+    # Unsubscribe from the team's topic
+    client.unsubscribe(f"teams/{'ATeam'}")
+    client.unsubscribe(f"teams/{'BTeam'}")
+

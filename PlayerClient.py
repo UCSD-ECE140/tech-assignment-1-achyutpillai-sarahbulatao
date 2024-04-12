@@ -203,6 +203,7 @@ if __name__ == '__main__':
     client.connect(broker_address, broker_port)
 
     # setting callbacks, use separate functions like above for better visibility
+    client.on_connect = on_connect
     client.on_subscribe = on_subscribe # Can comment out to not print when subscribing to new topics
     client.on_message = on_message
     client.on_publish = on_publish # Can comment out to not print when publishing to topics
@@ -327,6 +328,7 @@ if __name__ == '__main__':
     client.unsubscribe(f"games/{lobby_name}/{player_1}/game_state")
     client.unsubscribe(f"games/{lobby_name}/{player_2}/game_state")
     client.unsubscribe(f"games/{lobby_name}/{player_3}/game_state")
+    client.unsubscribe(f"games/{lobby_name}/{player_4}/game_state")
 
     # Unsubscribe from the scores topic
     client.unsubscribe(f"games/{lobby_name}/scores")
@@ -335,6 +337,7 @@ if __name__ == '__main__':
     client.unsubscribe(f"games/{lobby_name}/{player_1}/move")
     client.unsubscribe(f"games/{lobby_name}/{player_2}/move")
     client.unsubscribe(f"games/{lobby_name}/{player_3}/move")
+    client.unsubscribe(f"games/{lobby_name}/{player_4}/move")
 
     # Unsubscribe from the team's topic
     client.unsubscribe(f"teams/{'ATeam'}")
