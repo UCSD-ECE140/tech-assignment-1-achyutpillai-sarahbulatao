@@ -7,8 +7,12 @@ from paho import mqtt
 import time
 
 from colorama import Fore # For colored output
+import random
+from collections import deque
+
 
 game_over = False
+playerViews = {}
 
 # setting callbacks for different events to see if it works, print the message etc.
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -112,6 +116,11 @@ def on_message(client, userdata, msg):
         #     print(''.join('{:<10}'.format(item) for item in row))
         print(Fore.WHITE + msg.topic)
 
+        global playerViews
+
+        playerViews[msg.topic] = player_view
+
+
         for row in player_view:
             for item in row:
                 if item == 'Player':
@@ -169,6 +178,25 @@ def update_view(view, position, start_row, start_col, item):
         view[position[0] - start_row][position[1] - start_col] = item
     except IndexError:
         pass  # Ignore positions outside of the player's view
+
+# def bfs(start, target, walls):
+#     """
+#     Perform Breadth-First Search to find the next direction to move towards the target.
+#     """
+#     queue = deque([(start, [])])
+#     visited = set()
+#     while queue:
+#         current, path = queue.popleft()
+#         if current == target:
+#             return path[0] if path else None  # Return the first direction in the path
+#         if current in visited:
+#             continue
+#         visited.add(current)
+#         for direction in ["UP", "DOWN", "LEFT", "RIGHT"]:
+#             new_pos = move(current, direction)
+#             if new_pos not in walls:
+#                 queue.append((new_pos, path + [direction]))
+#     return None  # No valid path found
 # # print message, useful for checking if it was successful
 # def on_message(client, userdata, msg):
 #     """
@@ -289,9 +317,9 @@ if __name__ == '__main__':
 
     lobby_name = "TestLobby"
     players = ['Player1', 'Player2', 'Player3', 'Player4']
-    player_1 = "Player1"
-    player_2 = "Player2"
-    player_3 = "Player3"
+    # player_1 = "Player1"
+    # player_2 = "Player2"
+    # player_3 = "Player3"
 
     client.subscribe(f"games/{lobby_name}/lobby")
     client.subscribe(f'games/{lobby_name}/+/game_state')
@@ -313,7 +341,7 @@ if __name__ == '__main__':
                                         'team_name':'BTeam',
                                         'player_name' : players[3]}))
 
-    time.sleep(3) # Wait 3 seconds to resolve game start
+    time.sleep(2) # Wait 2 seconds to resolve game start
     # client.publish(f"games/{lobby_name}/start", "START")
 
     command = ''
@@ -321,7 +349,8 @@ if __name__ == '__main__':
         command = input("Type 'START' to start the game: ").upper()
         if command == 'START':
             client.publish(f"games/{lobby_name}/start", "START")
-
+            time.sleep(0.5)
+    directions = ["UP", "DOWN", "LEFT", "RIGHT"]
     client.loop_start()
     while not game_over:
         try:
@@ -329,7 +358,31 @@ if __name__ == '__main__':
             time.sleep(0.5)
             for player in players:
                 time.sleep(0.1)
-                command = input(str(player) + ", enter a direction to move in: ").upper()
+                # command = input(str(player) + ", enter a direction to move in: ").upper()
+                
+                # print(playerViews)
+                playerGrid = playerViews[f'games/{lobby_name}/{player}/game_state']
+                
+                choiceValid = False
+                n = 0
+                while not choiceValid:
+                    randint = random.randint(0,3)
+                    command = directions[randint]
+                    
+                    if (playerGrid[2][1] == 'None' or 'Coin' in playerGrid[2][1]) and command == "LEFT": #left
+                        choiceValid = True
+                    elif (playerGrid[2][3] == 'None' or 'Coin' in playerGrid[2][3]) and command == "RIGHT": #right
+                        choiceValid = True
+                    elif (playerGrid[1][2] == 'None' or 'Coin' in playerGrid[1][2]) and command == "UP": #up
+                        choiceValid = True
+                    elif (playerGrid[3][2] == 'None' or 'Coin' in playerGrid[3][2]) and command == "DOWN": #down
+                        choiceValid = True
+                    else:
+                        if n>10:
+                            choiceValid = True
+                        n += 1
+                        choiceValid = False
+
                 if command == "UP" or command == "\x1b[A":
                     client.publish(f"games/{lobby_name}/{player}/move", "UP")
                 elif command == "DOWN" or command == "\x1b[B":
@@ -340,12 +393,10 @@ if __name__ == '__main__':
                     client.publish(f"games/{lobby_name}/{player}/move", "LEFT")
                 else:
                     print("Not a Valid Direction")
-            time.sleep(1.5)
+            # time.sleep(1)
 
         except KeyboardInterrupt:
             print('\nBreak')
-            client.publish(f"games/{lobby_name}/start", "STOP")
-            client.loop_stop()
             break
 
     client.publish(f"games/{lobby_name}/start", "STOP")
