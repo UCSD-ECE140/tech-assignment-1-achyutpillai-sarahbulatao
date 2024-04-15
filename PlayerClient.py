@@ -106,12 +106,11 @@ def on_message(client, userdata, msg):
         for enemy in enemy_positions:
             update_view(player_view, enemy, start_row, start_col, 'Enemy')
 
-        # Print the player's view
+        # Print the topic which contains player name in it
         print()
-        # for row in player_view:
-        #     print(''.join('{:<10}'.format(item) for item in row))
         print(Fore.WHITE + msg.topic)
 
+        #displays the 5x5 grid with colors
         for row in player_view:
             for item in row:
                 if item == 'Player':
@@ -136,6 +135,7 @@ def on_message(client, userdata, msg):
 
 
 def update_player_view(view, position, start_row, start_col):
+    '''adds '.' for positions in view that do not exist. For when player is on the edge of the game board'''
     x, y = position
     if y > 7:
         for val in range(5):
@@ -161,7 +161,7 @@ def update_player_view(view, position, start_row, start_col):
         if x < 1:
             for val in range(5):
                 view[1][val] = '.'
-    view[position[0] - start_row][position[1] - start_col] = 'Player'
+    view[position[0] - start_row][position[1] - start_col] = 'Player' #adds player to center of view
 
 
 def update_view(view, position, start_row, start_col, item):
@@ -217,8 +217,7 @@ if __name__ == '__main__':
     #                                     'team_name':'BTeam',
     #                                     'player_name' : players[3]}))
 
-    time.sleep(3) # Wait 3 seconds to resolve game start
-    # client.publish(f"games/{lobby_name}/start", "START")
+    time.sleep(2) # Wait 2 seconds to resolve game start
 
     command = ''
     while command != 'START':
@@ -229,10 +228,10 @@ if __name__ == '__main__':
     client.loop_start()
     while not game_over:
         try:
-            time.sleep(1)
             for player in players:
                 time.sleep(0.1)
                 command = input(str(player) + ", enter a direction to move in: ").upper()
+                #sends movements to game based on user input
                 if command == "UP" or command == "\x1b[A":
                     client.publish(f"games/{lobby_name}/{player}/move", "UP")
                 elif command == "DOWN" or command == "\x1b[B":
@@ -243,6 +242,7 @@ if __name__ == '__main__':
                     client.publish(f"games/{lobby_name}/{player}/move", "LEFT")
                 else:
                     print("Not a Valid Direction")
+            time.sleep(1.5)
 
         except KeyboardInterrupt:
             print('\nBreak')
