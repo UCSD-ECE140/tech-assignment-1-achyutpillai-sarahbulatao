@@ -8,7 +8,6 @@ import time
 
 from colorama import Fore # For colored output
 import random
-from collections import deque
 
 
 game_over = False
@@ -63,8 +62,6 @@ def on_message(client, userdata, msg):
     try:
         game_state = json.loads(msg.payload)
     except json.JSONDecodeError:
-        # print(f"Invalid JSON: {msg.payload}")
-        # return
         if msg.payload == b'Game Over: All coins have been collected':
                 game_over = True
                 print(Fore.WHITE + str(msg.payload.decode('utf-8')))
@@ -112,15 +109,13 @@ def on_message(client, userdata, msg):
 
         # Print the player's view
         print()
-        # for row in player_view:
-        #     print(''.join('{:<10}'.format(item) for item in row))
         print(Fore.WHITE + msg.topic)
 
         global playerViews
 
-        playerViews[msg.topic] = player_view
+        playerViews[msg.topic] = player_view #stores player's 5x5 grid
 
-
+        #displays the 5x5 grid with colors
         for row in player_view:
             for item in row:
                 if item == 'Player':
@@ -145,6 +140,7 @@ def on_message(client, userdata, msg):
 
 
 def update_player_view(view, position, start_row, start_col):
+    '''adds '.' for positions in view that do not exist. For when player is on the edge of the game board'''
     x, y = position
     if y > 7:
         for val in range(5):
@@ -170,7 +166,7 @@ def update_player_view(view, position, start_row, start_col):
         if x < 1:
             for val in range(5):
                 view[1][val] = '.'
-    view[position[0] - start_row][position[1] - start_col] = 'Player'
+    view[position[0] - start_row][position[1] - start_col] = 'Player' #adds player to center of view
 
 
 def update_view(view, position, start_row, start_col, item):
@@ -180,13 +176,14 @@ def update_view(view, position, start_row, start_col, item):
         pass  # Ignore positions outside of the player's view
 
 def choose_direction(board):
+    '''choose direction for player to move'''
     coins_priority = ['Coin3', 'Coin2', 'Coin1']
     directions = [(2, 1, "LEFT"), (2, 3, "RIGHT"), (1, 2, "UP"), (3, 2, "DOWN")]
     
+    #if coins are in direct proximity, will go for the coin with the highest value first
     for coin in coins_priority:
         for x, y, direction in directions:
             if board[x][y] == coin:
-                print(str(x) + ', ' + str(y) + ': ' + direction)
                 return direction
     
     # If no coins are found, prioritize moving towards any coin if seen
@@ -282,29 +279,23 @@ if __name__ == '__main__':
             client.publish(f"games/{lobby_name}/start", "START")
             time.sleep(1)
 
-    directions = ["UP", "DOWN", "LEFT", "RIGHT"]
+    directions = ["UP", "DOWN", "LEFT", "RIGHT"] #possible movement directions
     client.loop_start()
     while not game_over:
         try:
             for player in players:
                 time.sleep(0.1)
                 
-                playerGrid = playerViews[f'games/{lobby_name}/{player}/game_state']
-                
+                playerGrid = playerViews[f'games/{lobby_name}/{player}/game_state'] #retrieves corresponding players 5x5 grid
 
-                command = choose_direction(playerGrid)
+                command = choose_direction(playerGrid) #chooses a direction based off of player's view
 
-                if command == "UP":
-                    client.publish(f"games/{lobby_name}/{player}/move", "UP")
-                elif command == "DOWN":
-                    client.publish(f"games/{lobby_name}/{player}/move", "DOWN")
-                elif command == "RIGHT":
-                    client.publish(f"games/{lobby_name}/{player}/move", "RIGHT")
-                elif command == "LEFT":
-                    client.publish(f"games/{lobby_name}/{player}/move", "LEFT")
+                #sends chosen movements to game
+                if command in directions:
+                    client.publish(f"games/{lobby_name}/{player}/move", command)
                 else:
                     print("Not a Valid Direction")
-                time.sleep(1.5)
+            time.sleep(1.5)
 
 
         except KeyboardInterrupt:
